@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AmneziaVPN Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="bg-mesh"></div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+        <div class="glass-card login-box fade-in">
+            <div class="logo-wrapper">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+            </div>
+            <h1>AmneziaVPN</h1>
+            <p class="subtitle">Manager Portal</p>
+            <form id="login-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="username" placeholder="Логин" required>
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="password" placeholder="Пароль" required>
+                </div>
+                <button type="submit" class="btn-primary glow-effect">
+                    <span>Войти</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+            <div id="login-error" class="error hidden">Неверный логин или пароль</div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="dashboard hidden fade-in">
+        <!-- Sidebar / Minimal Header Navbar -->
+        <header class="navbar glass-card">
+            <div class="nav-brand">
+                <i class="fa-solid fa-shield-halved tx-gradient"></i>
+                <span>AmneziaVPN Manager</span>
+            </div>
+            <div class="nav-actions">
+                <button id="settings-btn" class="icon-btn" title="Настройки"><i class="fa-solid fa-gear"></i></button>
+                <button id="logout-btn" class="icon-btn logout" title="Выйти"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Top Widgets: Stats & System Monitoring -->
+            <div class="widgets-grid">
+                
+                <!-- VPN Stats -->
+                <div class="widget glass-card">
+                    <h3 class="widget-title"><i class="fa-solid fa-network-wired"></i> Сеть VPN</h3>
+                    <div class="stats-mini-grid">
+                        <div class="stat-item">
+                            <span class="stat-icon clients"><i class="fa-solid fa-users"></i></span>
+                            <div class="stat-data">
+                                <div class="stat-value" id="total-clients">0</div>
+                                <div class="stat-label">Клиенты</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon active"><i class="fa-solid fa-circle-check"></i></span>
+                            <div class="stat-data">
+                                <div class="stat-value" id="active-clients">0</div>
+                                <div class="stat-label">Активны</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon tx"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                            <div class="stat-data">
+                                <div class="stat-value" id="total-upload">0 B</div>
+                                <div class="stat-label">Отправлено</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon rx"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+                            <div class="stat-data">
+                                <div class="stat-value" id="total-download">0 B</div>
+                                <div class="stat-label">Получено</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Resources -->
+                <div class="widget glass-card">
+                    <h3 class="widget-title"><i class="fa-solid fa-server"></i> Ресурсы сервера</h3>
+                    <div class="resources-grid">
+                        <div class="resource-item">
+                            <div class="resource-header">
+                                <span>CPU</span>
+                                <span id="res-cpu-text">0%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill cpu" id="res-cpu-bar" style="width: 0%"></div></div>
+                        </div>
+                        <div class="resource-item">
+                            <div class="resource-header">
+                                <span>RAM (<span id="res-ram-label">0/0 GB</span>)</span>
+                                <span id="res-ram-text">0%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill ram" id="res-ram-bar" style="width: 0%"></div></div>
+                        </div>
+                        <div class="resource-item">
+                            <div class="resource-header">
+                                <span>Диск (<span id="res-disk-label">0/0 GB</span>)</span>
+                                <span id="res-disk-text">0%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill disk" id="res-disk-bar" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Routing Status -->
+                <div class="widget glass-card">
+                    <div class="widget-header">
+                        <h3 class="widget-title"><i class="fa-solid fa-route"></i> Маршрутизация</h3>
+                        <button id="update-ips-btn" class="btn-secondary small">Обновить IP РФ</button>
+                    </div>
+                    <div class="routing-list">
+                        <div class="route-item">
+                            <div class="route-info">
+                                <i class="fa-solid fa-earth-europe"></i>
+                                <span>Туннель DE</span>
+                            </div>
+                            <span id="tunnel-status" class="status-badge grey">Загрузка</span>
+                        </div>
+                        <div class="route-item">
+                            <div class="route-info">
+                                <i class="fa-solid fa-shield-cat"></i>
+                                <span>РФ IPset</span>
+                            </div>
+                            <span id="ipset-status" class="status-badge grey">Загрузка</span>
+                        </div>
+                        <div class="route-item">
+                            <div class="route-info">
+                                <i class="fa-solid fa-clock"></i>
+                                <span>Uptime сервера</span>
+                            </div>
+                            <span id="server-uptime" class="status-text">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clients Section -->
+            <div class="clients-section glass-card">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-mobile-screen"></i> Управление клиентами</h2>
+                    <button id="add-client-btn" class="btn-primary glow-effect">
+                        <i class="fa-solid fa-plus"></i> Создать клиента
+                    </button>
+                </div>
+                <div class="clients-table-wrapper">
+                    <table class="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Статус</th>
+                                <th>Имя</th>
+                                <th>IP Адрес</th>
+                                <th>Отправлено</th>
+                                <th>Получено</th>
+                                <th>Последний Handshake</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-list">
+                            <!-- clients loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Add Client Modal -->
+    <div id="add-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content glass-card pop-in">
+            <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            <h2>Новый клиент</h2>
+            <form id="add-client-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-tag"></i>
+                    <input type="text" id="client-name" placeholder="Название (например: iPhone 13)" required>
+                </div>
+                <button type="submit" class="btn-primary full-width">Сгенерировать</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client Details Modal -->
+    <div id="client-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content glass-card modal-large pop-in">
+            <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            <h2 id="client-modal-title">Конфигурация клиента</h2>
+            
+            <div class="client-details-grid">
+                <div class="qr-code-box">
+                    <img id="client-qr-img" src="" alt="QR Code" class="qr-img">
+                    <p class="hint">Отсканируйте камерой из приложения AmneziaWG</p>
+                </div>
+                
+                <div class="config-box">
+                    <div class="config-actions">
+                        <button id="download-config-btn" class="btn-icon" title="Скачать"><i class="fa-solid fa-download"></i></button>
+                        <button id="copy-config-btn" class="btn-icon" title="Копировать"><i class="fa-regular fa-copy"></i></button>
+                    </div>
+                    <pre id="client-config-text"></pre>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="toggle-client-btn" class="btn-secondary"><i class="fa-solid fa-power-off"></i> Вкл/Выкл</button>
+                <button id="delete-client-btn" class="btn-danger"><i class="fa-solid fa-trash"></i> Удалить клиента</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content glass-card modal-large pop-in">
+            <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            <h2>Настройки сервера</h2>
+            
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="tab-obfuscation">Обфускация</button>
+                <button class="tab-btn" data-tab="tab-security">Безопасность</button>
+            </div>
+
+            <div class="tab-content active" id="tab-obfuscation">
+                <p class="hint mb-4">Эти параметры применяются ко всем клиентам. Изменение потребует обновления конфигов у пользователей.</p>
+                <form id="obfuscation-form" class="settings-grid">
+                    <!-- Loaded dynamically -->
+                </form>
+                <button id="save-obfuscation-btn" class="btn-primary mt-4">Сохранить и перезапустить VPN</button>
+            </div>
+
+            <div class="tab-content" id="tab-security">
+                <form id="password-form" class="mt-4">
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="new-password" placeholder="Новый пароль админа" required>
+                    </div>
+                    <button type="submit" class="btn-primary mt-4">Сменить пароль</button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
