@@ -96,26 +96,84 @@ class RoutingManager:
         return {"interface": "awg0", "status": "down"}
     
     def setup_split_tunnel(self, interface: str = "awg-client") -> bool:
-        """Настройка split-tunneling"""
+        """Настройка split-tunneling с поддержкой кастомных маршрутов"""
+        import os
         try:
+            bypass_ru = os.getenv("AWG_BYPASS_RU", "1") == "1"
+            
             commands = [
                 ["ipset", "create", self.IPSET_NAME, "hash:net"],
+                ["ipset", "create", "custom_direct", "hash:net"],
+                ["ipset", "create", "custom_vpn", "hash:net"],
                 ["ipset", "add", self.IPSET_NAME, "10.0.0.0/8"],
                 ["ipset", "add", self.IPSET_NAME, "192.168.0.0/16"],
                 ["ipset", "add", self.IPSET_NAME, "172.16.0.0/12"],
                 ["ip", "rule", "add", "fwmark", str(self.FWMARK), "lookup", str(self.ROUTING_TABLE)],
                 ["ip", "route", "add", "default", "dev", "awg0", "table", str(self.ROUTING_TABLE)],
                 ["iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "awg0", "-j", "MASQUERADE"],
-                ["iptables", "-t", "mangle", "-A", "PREROUTING", "-i", interface, "-m", "set", "!", "--match-set", self.IPSET_NAME, "dst", "-j", "MARK", "--set-mark", str(self.FWMARK)],
+                ["iptables", "-t", "mangle", "-N", "AMNEZIA_PREROUTING"]
             ]
             
             for cmd in commands:
                 subprocess.run(cmd, capture_output=True)
             
+            # Привязываем кастомную цепочку, если еще не привязана
+            res = subprocess.run(["iptables", "-t", "mangle", "-C", "PREROUTING", "-i", interface, "-j", "AMNEZIA_PREROUTING"], capture_output=True)
+            if res.returncode != 0:
+                subprocess.run(["iptables", "-t", "mangle", "-A", "PREROUTING", "-i", interface, "-j", "AMNEZIA_PREROUTING"])
+
+            # Очищаем кастомную цепочку
+            subprocess.run(["iptables", "-t", "mangle", "-F", "AMNEZIA_PREROUTING"])
+            
+            # Собираем правила
+            rules = [
+                ["iptables", "-t", "mangle", "-A", "AMNEZIA_PREROUTING", "-m", "set", "--match-set", "custom_vpn", "dst", "-j", "MARK", "--set-mark", str(self.FWMARK)],
+                ["iptables", "-t", "mangle", "-A", "AMNEZIA_PREROUTING", "-m", "set", "--match-set", "custom_vpn", "dst", "-j", "RETURN"],
+                ["iptables", "-t", "mangle", "-A", "AMNEZIA_PREROUTING", "-m", "set", "--match-set", "custom_direct", "dst", "-j", "RETURN"]
+            ]
+            
+            if bypass_ru:
+                rules.append(["iptables", "-t", "mangle", "-A", "AMNEZIA_PREROUTING", "-m", "set", "--match-set", self.IPSET_NAME, "dst", "-j", "RETURN"])
+            
+            rules.append(["iptables", "-t", "mangle", "-A", "AMNEZIA_PREROUTING", "-j", "MARK", "--set-mark", str(self.FWMARK)])
+            
+            for cmd in rules:
+                subprocess.run(cmd)
+            
             return True
         except Exception as e:
             print(f"Error setting up split tunnel: {e}")
             return False
+    
+    def sync_custom_routes(self, routes_list: List[dict]):
+        """Берет список маршрутов, резолвит домены и обновляет ipset"""
+        import socket
+        subprocess.run(["ipset", "flush", "custom_direct"], capture_output=True)
+        subprocess.run(["ipset", "flush", "custom_vpn"], capture_output=True)
+        
+        for route in routes_list:
+            addr = route.get("address", "").strip()
+            r_type = route.get("route_type")
+            set_name = "custom_direct" if r_type == "direct" else "custom_vpn"
+            
+            is_ip = True
+            for char in addr:
+                if char.isalpha():
+                    is_ip = False
+                    break
+                    
+            ips_to_add = []
+            if is_ip:
+                ips_to_add.append(addr)
+            else:
+                try:
+                    res = socket.getaddrinfo(addr, None, socket.AF_INET)
+                    ips_to_add = list(set([r[4][0] for r in res]))
+                except Exception:
+                    pass
+            
+            for ip in ips_to_add:
+                subprocess.run(["ipset", "add", set_name, ip], capture_output=True)
     
     def get_connection_stats(self) -> dict:
         """Получение общей статистики соединений"""

@@ -73,3 +73,23 @@ class Token(SQLModel):
     """JWT токен"""
     access_token: str
     token_type: str = "bearer"
+
+
+class CustomRoute(SQLModel, table=True):
+    """Кастомные маршруты для split-tunneling"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    address: str = Field(index=True)  # Домен или IP/CIDR
+    route_type: str  # "direct" или "vpn"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CustomRouteCreate(SQLModel):
+    address: str
+    route_type: str
+
+
+class CustomRouteResponse(SQLModel):
+    id: int
+    address: str
+    route_type: str
+    created_at: datetime

@@ -16,7 +16,8 @@ from sqlmodel import Session, select
 from database import init_db, get_db
 from models import (
     Client, ClientCreate, ClientResponse, StatsResponse,
-    ServerConfig, UserLogin, Token
+    ServerConfig, UserLogin, Token,
+    CustomRoute, CustomRouteCreate, CustomRouteResponse
 )
 from pydantic import BaseModel
 from amneziawg import wg_manager
@@ -74,6 +75,19 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 def on_startup():
     """Инициализация при запуске"""
     init_db()
+    
+    def sync_routes_job():
+        from database import engine
+        with Session(engine) as db:
+            routes = db.exec(select(CustomRoute)).all()
+            routing_manager.sync_custom_routes([r.dict() for r in routes])
+            
+    # Запускаем один раз при старте
+    sync_routes_job()
+    
+    # Добавляем в шедулер обновление раз в час
+    routing_manager.scheduler.add_job(sync_routes_job, 'interval', hours=1)
+    
     routing_manager.update_ru_ipset()
 
 
@@ -425,6 +439,91 @@ def restart_server(_: dict = Depends(verify_token)):
     if wg_manager.restart_service():
         return {"status": "restarted"}
     raise HTTPException(status_code=500, detail="Failed to restart server")
+
+
+class RoutingSettingsParams(BaseModel):
+    bypass_ru: bool
+
+@app.get("/api/routing/settings")
+def get_routing_settings(_: dict = Depends(verify_token)):
+    """Получение настроек роутинга"""
+    env_path = Path(__file__).parent.parent / "config" / ".env"
+    bypass_ru = True
+    if env_path.exists():
+        content = env_path.read_text()
+        if 'AWG_BYPASS_RU=0' in content: 
+            bypass_ru = False
+    return {"bypass_ru": bypass_ru}
+
+@app.post("/api/routing/settings")
+def update_routing_settings(settings: RoutingSettingsParams, _: dict = Depends(verify_token)):
+    """Обновление настроек роутинга"""
+    env_path = Path(__file__).parent.parent / "config" / ".env"
+    if env_path.exists():
+        content = env_path.read_text()
+        import re
+        val = "1" if settings.bypass_ru else "0"
+        if re.search(r'AWG_BYPASS_RU=.*', content):
+            content = re.sub(r'AWG_BYPASS_RU=.*', f'AWG_BYPASS_RU={val}', content)
+        else:
+            content += f"\nAWG_BYPASS_RU={val}\n"
+        env_path.write_text(content)
+        
+    os.environ["AWG_BYPASS_RU"] = "1" if settings.bypass_ru else "0"
+    routing_manager.setup_split_tunnel()
+    return {"status": "success"}
+
+@app.get("/api/routing/custom", response_model=List[CustomRouteResponse])
+def get_custom_routes(
+    db: Session = Depends(get_db), 
+    _: dict = Depends(verify_token)
+):
+    """Получить пользовательские маршруты"""
+    return db.exec(select(CustomRoute)).all()
+
+@app.post("/api/routing/custom", response_model=CustomRouteResponse)
+def add_custom_route(
+    route: CustomRouteCreate, 
+    db: Session = Depends(get_db), 
+    _: dict = Depends(verify_token)
+):
+    """Добавить новый маршрут"""
+    if route.route_type not in ("direct", "vpn"):
+        raise HTTPException(status_code=400, detail="Invalid route type")
+        
+    existing = db.exec(select(CustomRoute).where(CustomRoute.address == route.address)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Route already exists")
+        
+    r = CustomRoute(address=route.address.strip(), route_type=route.route_type)
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    
+    # Sync with iptables
+    routes = db.exec(select(CustomRoute)).all()
+    routing_manager.sync_custom_routes([r.dict() for r in routes])
+    
+    return r
+
+@app.delete("/api/routing/custom/{route_id}")
+def delete_custom_route(
+    route_id: int, 
+    db: Session = Depends(get_db), 
+    _: dict = Depends(verify_token)
+):
+    """Удалить маршрут"""
+    r = db.get(CustomRoute, route_id)
+    if not r: 
+        raise HTTPException(status_code=404, detail="Route not found")
+        
+    db.delete(r)
+    db.commit()
+    
+    routes = db.exec(select(CustomRoute)).all()
+    routing_manager.sync_custom_routes([r.dict() for r in routes])
+    
+    return {"status": "deleted"}
 
 
 class ObfuscationParams(BaseModel):

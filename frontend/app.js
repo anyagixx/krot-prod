@@ -12,7 +12,8 @@ const forms = {
     login: document.getElementById('login-form'),
     addClient: document.getElementById('add-client-form'),
     obfuscation: document.getElementById('obfuscation-form'),
-    password: document.getElementById('password-form')
+    password: document.getElementById('password-form'),
+    addRoute: document.getElementById('add-route-form')
 };
 
 const modals = {
@@ -51,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Settings actions
     forms.password.addEventListener('submit', handleChangePassword);
     document.getElementById('save-obfuscation-btn').addEventListener('click', handleSaveObfuscation);
+    forms.addRoute.addEventListener('submit', handleAddRoute);
+    document.getElementById('bypass-ru-toggle').addEventListener('change', handleToggleBypassRu);
     
     // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -330,8 +333,77 @@ async function openSettings() {
             </div>
         `).join('');
         
+        // Load routing settings
+        const rSetRes = await api('/routing/settings');
+        if (rSetRes) {
+            const rSet = await rSetRes.json();
+            document.getElementById('bypass-ru-toggle').checked = rSet.bypass_ru;
+        }
+        await loadCustomRoutes();
+        
         showModal(modals.settings);
     } catch(err) { console.error(err); }
+}
+
+async function loadCustomRoutes() {
+    const res = await api('/routing/custom');
+    if (!res) return;
+    const routes = await res.json();
+    const body = document.getElementById('custom-routes-body');
+    if(routes.length === 0) {
+        body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#94a3b8">Нет пользовательских маршрутов.</td></tr>';
+        return;
+    }
+    body.innerHTML = routes.map(r => `
+        <tr>
+            <td style="font-family: monospace;">${escapeHtml(r.address)}</td>
+            <td><span class="status-badge ${r.route_type === 'direct' ? 'grey' : 'online'}">${r.route_type.toUpperCase()}</span></td>
+            <td style="text-align: right">
+                <button class="btn-icon" style="color:var(--danger)" onclick="handleDeleteRoute(${r.id})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function handleAddRoute(e) {
+    e.preventDefault();
+    const btn = forms.addRoute.querySelector('button');
+    btn.disabled = true;
+    const address = document.getElementById('route-address').value;
+    const route_type = document.getElementById('route-type').value;
+    
+    try {
+        await api('/routing/custom', {
+            method: 'POST',
+            body: JSON.stringify({address, route_type})
+        });
+        document.getElementById('route-address').value = '';
+        await loadCustomRoutes();
+    } catch(err) { alert(err.message); }
+    btn.disabled = false;
+}
+
+async function handleDeleteRoute(id) {
+    if(!confirm('Удалить этот маршрут?')) return;
+    try {
+        await api('/routing/custom/' + id, {method: 'DELETE'});
+        await loadCustomRoutes();
+    } catch(err) { alert(err.message); }
+}
+
+async function handleToggleBypassRu(e) {
+    const bypass_ru = e.target.checked;
+    e.target.disabled = true;
+    try {
+        await api('/routing/settings', {
+            method: 'POST',
+            body: JSON.stringify({bypass_ru})
+        });
+    } catch(err) {
+        alert(err.message);
+        e.target.checked = !bypass_ru;
+    }
+    e.target.disabled = false;
 }
 
 async function handleSaveObfuscation(e) {

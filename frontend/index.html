@@ -238,6 +238,7 @@
             <div class="tabs">
                 <button class="tab-btn active" data-tab="tab-obfuscation">Обфускация</button>
                 <button class="tab-btn" data-tab="tab-security">Безопасность</button>
+                <button class="tab-btn" data-tab="tab-routing">Маршруты</button>
             </div>
 
             <div class="tab-content active" id="tab-obfuscation">
@@ -256,6 +257,40 @@
                     </div>
                     <button type="submit" class="btn-primary mt-4">Сменить пароль</button>
                 </form>
+            </div>
+            
+            <div class="tab-content" id="tab-routing">
+                <div class="mb-4" style="display:flex; align-items:center; gap:10px; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                    <input type="checkbox" id="bypass-ru-toggle" style="width: 20px; height: 20px;">
+                    <label for="bypass-ru-toggle" style="cursor:pointer"><b>Обход блокировок РФ</b><br><span class="hint">Направлять адреса из РФ IPSet напрямую (минуя VPN)</span></label>
+                </div>
+                
+                <h3 class="mb-2 mt-4">Пользовательские маршруты</h3>
+                <p class="hint mb-4">Укажите домен, IP или подсеть (CIDR), которые нужно всегда направлять через VPN или напрямую.</p>
+                
+                <form id="add-route-form" style="display:flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="route-address" placeholder="example.com или 1.2.3.4" style="flex: 1;" required>
+                    <select id="route-type" style="padding: 0.8rem; border-radius: 8px; background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1);">
+                        <option value="direct" style="color:black">Прямо (Direct)</option>
+                        <option value="vpn" style="color:black">В Туннель (VPN)</option>
+                    </select>
+                    <button type="submit" class="btn-primary" style="padding: 0 1.5rem;"><i class="fa-solid fa-plus"></i></button>
+                </form>
+                
+                <div class="clients-table-wrapper" style="max-height: 250px; overflow-y: auto;">
+                    <table class="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Адрес / Домен</th>
+                                <th>Маршрут</th>
+                                <th style="text-align: right"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="custom-routes-body">
+                            <!-- Loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
         </div>
