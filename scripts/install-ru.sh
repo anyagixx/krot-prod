@@ -142,6 +142,10 @@ wget -q -O app.js https://raw.githubusercontent.com/anyagixx/krot-prod/main/fron
 cd ..
 
 mkdir -p config
+mkdir -p certs
+
+# Generate self-signed SSL certificates for HTTPS access
+openssl req -x509 -newkey rsa:4096 -keyout certs/key.pem -out certs/cert.pem -sha256 -days 3650 -nodes -subj "/C=RU/O=AmneziaVPN/CN=VPNManager"
 cat > config/.env << EOF
 ADMIN_USERNAME=$ADMIN_USER
 # Временно сохраняем в plain-text, бэкенд на Python (main.py) захеширует его при первом запуске
@@ -170,7 +174,7 @@ After=network.target
 Type=simple
 WorkingDirectory=$INSTALL_DIR
 EnvironmentFile=$INSTALL_DIR/config/.env
-ExecStart=$INSTALL_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port $WEB_PORT
+ExecStart=$INSTALL_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port $WEB_PORT --ssl-keyfile $INSTALL_DIR/certs/key.pem --ssl-certfile $INSTALL_DIR/certs/cert.pem
 Restart=always
 
 [Install]
