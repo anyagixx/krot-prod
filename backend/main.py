@@ -40,7 +40,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 app = FastAPI(
     title="AmneziaVPN Manager",
     description="Web UI для управления AmneziaWG VPN с split-tunneling",
-    version="1.0.3"
+    version="1.0.4"
 )
 
 app.state.limiter = limiter
